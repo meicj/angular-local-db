@@ -19,7 +19,7 @@
   ],
   "homepage": "https://github.com/meicj/corgular-modules-core",
   "moduleType": [],
-  "private": true,
+  "private": false,
   "ignore": [
     "**/.*",
     "node_modules",
