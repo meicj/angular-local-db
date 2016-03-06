@@ -1,7 +1,7 @@
 /*!
  * corgular-modules-core
  * https://github.com/meicj/corgular-modules-core
- * Version: 0.0.1 - 2016-03-05T09:52:36.868Z
+ * Version: 0.0.1 - 2016-03-06T16:40:32.696Z
  * License: MIT
  */
 
@@ -18,7 +18,6 @@
     /**
      * define factory of `debugHelper`
      */
-    debugHelper.$inject = ['$document'];
     debugHelperRun.$inject = ['debugHelper', '$window'];
     angular
         .module('core')
@@ -29,7 +28,7 @@
      * API of `debugHelper`
      * @ngInject
      */
-    function debugHelper($document) {
+    function debugHelper() {
 
         return {
             /**
@@ -37,7 +36,7 @@
              * @returns {*}
              */
             get: function () {
-                var injector = angular.element($document).injector();
+                var injector = angular.element(document.body).injector();
                 return injector.get.apply(injector.get, arguments);
             }
         };
@@ -113,6 +112,63 @@
 })();
 
 
+
+(function () {
+    'use strict';
+
+    handleWindowError.$inject = ['$injector'];
+    var __logger;
+
+    /**
+     * init `exceptionHandler`
+     */
+    angular
+        .module('core')
+        .run(handleWindowError);
+
+    /**
+     * dynamic inject logger service to make logger can be custom by actual requirements
+     * @param $injector {Object}
+     * @returns {Object}
+     */
+    function injectLogger($injector) {
+        var serviceName = 'logger';
+        return __logger || (
+                __logger = $injector.has(serviceName) &&
+                    $injector.get(serviceName) || {
+                        error: function () {
+                            console.warn(
+                                'exceptionHandler: Implement `logger.error()` to log the error. ',
+                                arguments
+                            );
+                        }
+                    }
+            );
+    }
+
+    /**
+     * handle window.onerror event
+     * @ngInject
+     */
+    function handleWindowError($injector) {
+
+        var oldOnError = window.onerror;
+        window.onerror = function (errorMsg, file, lineNumber) {
+
+            // handler window error
+            injectLogger($injector).error('window.error', errorMsg, file, lineNumber);
+
+            if (oldOnError) {
+                // call origin window.onerror
+                return oldOnError(errorMsg, file, lineNumber);
+            }
+
+            // keep origin invoke
+            return false;
+        };
+    }
+
+})();
 
 (function () {
     'use strict';
@@ -206,7 +262,7 @@
                             defer.resolve(_instance[dbName]);
                         } else {
                             _config.getDBProvider().openDatabase(
-                                dbName,
+                                { name: dbName },
                                 function (openedDb) {
                                     _instance[dbName] = openedDb;
                                     defer.resolve(openedDb);
