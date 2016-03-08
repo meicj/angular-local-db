@@ -9,7 +9,8 @@
     angular
         .module('core')
         .run(handleWindowError)
-        .config(handleAngularError);
+        .config(handleAngularError)
+        .config(handleHttpError);
 
     /**
      * dynamic inject logger service to make logger can be custom by actual requirements
@@ -25,11 +26,24 @@
                     $injector.get(serviceName) || {
                         /**
                          * error logger function
-                         * @param type {string} enum:'window.error'|'angular.error'
+                         * @param type {string}
+                         *
+                         *  Enum:
+                         *  'window.error' - all of uncaught exception
+                         *
+                         *  'angular.error' - all of angular or called $log.error exception
+                         *
+                         *  `http.result.error` - all of http server response
+                         *                        with {error_code:'something'} exception
+                         *
+                         *  'http.status.error' - all of http response status code
+                         *                        aren't 200 exception,include timeout
+                         *
                          * @param exception {Object} the object of error
                          * @param exception.message {string} exception message string
                          * @param {string} [exception.file] exception file path
                          * @param {number} [exception.line] exception file line number
+                         * @param {string} [exception.remark] addition information
                          */
                         error: function (type, exception) {
                             console.warn(
@@ -135,6 +149,111 @@
             };
 
             return $delegate;
+        }
+    }
+
+    /**
+     * handle error of $http
+     * @param $httpProvider
+     * @ngInject
+     */
+    function handleHttpError($httpProvider) {
+
+        $httpProvider.interceptors.push($httpInterceptor);
+
+        /**
+         * intercept http error
+         * @param $q
+         * @param $window
+         * @param $injector
+         * @returns {*}
+         * @ngInject
+         */
+        function $httpInterceptor($q, $window, $injector) {
+            return {
+                /**
+                 * record the time before request to help calc times cost
+                 * @param config
+                 * @returns {*}
+                 */
+                request: function (config) {
+                    config._time_start = (new Date()).getTime();
+                    return config;
+                },
+                /**
+                 * log http result error
+                 * if server return object with `error_code` property,
+                 * we say it's an error
+                 *
+                 * TODO: That should be able to custom
+                 * @param response
+                 * @param response.data
+                 * @param response.data.error_code
+                 * @param response.config
+                 * @returns {*}
+                 */
+                response: function (response) {
+                    var exception;
+                    if (response.data && response.data.error_code) {
+                        exception = {
+                            file: response.config.url,
+                            message: $window.JSON.stringify(response.data),
+                            remark: $window.JSON.stringify({config: response.config})
+                        };
+
+                        log.log('http.result.error', exception);
+                    }
+                    return response;
+                },
+                /**
+                 * log http status error
+                 * @param rejection
+                 * @returns {promise}
+                 */
+                responseError: function (rejection) {
+                    var exception,
+                        time_end,
+                        time_duration,
+                        message,
+                        remark;
+
+                    // 1.format status error message
+                    message = rejection.status || '';
+                    if (rejection.statusText) {
+                        message += '(' + rejection.statusText + ') ';
+                    }
+                    message = message || 'unknown';
+
+                    // 1.1.if request was timeout, concat `timeout` into message
+                    if (rejection.config._time_start) {
+                        time_end = (new Date()).getTime();
+                        time_duration = time_end - rejection.config._time_start;
+
+                        if (rejection.config.timeout
+                            && rejection.config.timeout != -1
+                            && time_duration >= rejection.config.timeout) {
+                            message += 'timeout';
+                        }
+                    }
+
+                    // 2.addition information
+                    remark = (time_duration ? 'duration: ' + time_duration + 'ms ' : '');
+                    remark += $window.JSON.stringify(rejection);
+
+                    // 3.build error object
+                    exception = {
+                        file: rejection.config.url,
+                        message: message,
+                        remark: remark
+                    };
+
+                    // 4.call the logger
+                    injectLogger($injector).error('http.status.error', exception);
+
+                    // 5.keep return
+                    return $q.reject(rejection);
+                }
+            };
         }
     }
 
