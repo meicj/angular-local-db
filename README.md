@@ -7,7 +7,14 @@ A sets of angular core modules for mobile devices(a few modules depend on Cordov
 * `localDB`: Utilize local SQLite database on mobile devices, depends on Cordova-SQLite-Plugin(HTML5/Web SQL API)
 * `device`: Device events API 
 * `debugHelper`: Debug helpful code tools for angular
+* `exceptionHandler`: Handle all kinds of error on the web front-end
 * ...
+
+### How to use
+
+* Sample js at [corgular](https://github.com/meicj/corgular/tree/master/www/js/core.sample)
+
+* Run sample at [corgular](https://github.com/meicj/corgular)
 
 ## Coming soon...
 
