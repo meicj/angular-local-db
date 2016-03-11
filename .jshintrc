@@ -1,7 +1,8 @@
 {
   "globals": [
     "angular",
-    "window"
+    "window",
+    "console"
   ],
   "bitwise": true,
   "immed": true,

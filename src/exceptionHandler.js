@@ -201,7 +201,8 @@
                             remark: $window.JSON.stringify({config: response.config})
                         };
 
-                        log.log('http.result.error', exception);
+                        // call the logger
+                        injectLogger($injector).error('http.result.error', exception);
                     }
                     return response;
                 },
