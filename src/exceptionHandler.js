@@ -1,16 +1,47 @@
 (function () {
     'use strict';
 
-    var __logger;
+    var __logger,
+        __config;
 
     /**
      * init `exceptionHandler`
      */
     angular
         .module('core')
+        .provider('exceptionHandler', exceptionHandlerProvider)
         .run(handleWindowError)
         .config(handleAngularError)
         .config(handleHttpError);
+
+    /**
+     * configure `exceptionHandler`
+     */
+    function exceptionHandlerProvider() {
+        var _self = this; // jshint ignore:line
+
+        /**
+         * default http result error decider
+         *
+         * if http response JSON of {error_code:XX} that will be logged
+         * @returns {string}
+         */
+        _self.isHttpResultError = function (httpResult) {
+            return httpResult && httpResult.error_code;
+        };
+
+        /**
+         * content
+         * @type {{}}
+         */
+        _self.$get = {};
+
+        /**
+         * make accessible
+         * @private
+         */
+        __config = _self;
+    }
 
     /**
      * dynamic inject logger service to make logger can be custom by actual requirements
@@ -184,8 +215,6 @@
                  * log http result error
                  * if server return object with `error_code` property,
                  * we say it's an error
-                 *
-                 * TODO: That should be able to custom
                  * @param response
                  * @param response.data
                  * @param response.data.error_code
@@ -194,7 +223,7 @@
                  */
                 response: function (response) {
                     var exception;
-                    if (response.data && response.data.error_code) {
+                    if (__config.isHttpResultError(response.data)) {
                         exception = {
                             file: response.config.url,
                             message: $window.JSON.stringify(response.data),
